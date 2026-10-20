@@ -1,0 +1,67 @@
+{
+  "generated_at": "2026-10-15T10:23:00+07:00",
+  "notes": [
+    "Contract source image visibly shows 0512/2025/HĐCN/U11-TT; OCR normalizes Đ to D, so review-controlled matching uses a normalization key and never overwrites the source.",
+    "Payment request sample is a supplied real screenshot. Key dates, amount, invoice number and employee code are extracted; OCR spelling imperfections are intentionally retained as QA evidence.",
+    "Checkpoint 4 rerun confirmed the same three supplied real samples after OCR-review workflow changes."
+  ],
+  "results": [
+    {
+      "file": "Urenco 30.09.26.pdf",
+      "expected": "invoice",
+      "doc_type": "invoice",
+      "confidence": 0.89,
+      "extraction_method": "pdf_text",
+      "values": {
+        "invoice_no": "4348",
+        "invoice_date": "2026-09-30",
+        "tax_code": "0900291087",
+        "buyer_tax_code": "0900233631",
+        "amount": 7155000,
+        "quantity": 2450,
+        "vendor_name": "CÔNG TY CỔ PHẦN MÔI TRƯỜNG ĐÔ THỊ VÀ CÔNG NGHIỆP 11 - URENCO 11",
+        "service_description": "Thu gom và xử lý chất thải"
+      },
+      "warnings": [],
+      "text_length": 1762
+    },
+    {
+      "file": "HỢP ĐỒNG URENCO11.pdf",
+      "expected": "contract",
+      "doc_type": "contract",
+      "confidence": 0.88,
+      "extraction_method": "pdf_ocr_preprocessed",
+      "values": {
+        "contract_no": "0512/2025/HDCN/U11-TT",
+        "signed_date": "2025-12-05",
+        "payment_term_days": 10,
+        "vendor_name": "CONG TY CP MOI TRƯỜNG ĐỒ THỊ VÀ CÔNG NGHIỆP 11 — URENCO11",
+        "service_description": "thu gom và xử lý chất thải;"
+      },
+      "warnings": [],
+      "text_length": 6335
+    },
+    {
+      "file": "image(20261015-020658).png",
+      "expected": "payment_request",
+      "doc_type": "payment_request",
+      "confidence": 0.86,
+      "extraction_method": "image_preprocessed_psm4",
+      "values": {
+        "date": "2026-10-12",
+        "required_payment_date": "2026-10-16",
+        "request_no": "803",
+        "amount": 7155000,
+        "vendor_name": "Cong ty co phan moi truong de thi va cong nghiep 11-Urenco 11- CCMTDI",
+        "requester": "Đăng Vũ Việt Thắng (NV02089)",
+        "employee_code": "NV02089",
+        "department": "VIETCHEM -Phing EHS",
+        "invoice_no": "4348",
+        "bank_account": "2405201002417",
+        "purpose": "NMTT - Phong EHS chi tra chi phi thu gam ric thai T9 (HD: 4348)"
+      },
+      "warnings": [],
+      "text_length": 1111
+    }
+  ]
+}

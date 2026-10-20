@@ -1,0 +1,20 @@
+VIETCHEM EHS CP7.0A - PERSONAL PRIVATE ONLINE
+
+LẦN ĐẦU:
+1. Cài + login Tailscale trên PC chạy EHS.
+2. Cài + login Tailscale trên điện thoại/laptop cần truy cập.
+3. Chạy START_PRIVATE_ONLINE.bat.
+4. Mở URL http://100.x.x.x:8787 được in trên màn hình.
+
+KIỂM TRA NHANH:
+- PRIVATE_ONLINE_STATUS.bat
+
+CHỈ DÙNG TRÊN MÁY NÀY:
+- START_LOCAL.bat
+
+DATA KHÔNG NẰM TRONG THƯ MỤC APP:
+%USERPROFILE%\VIETCHEM_EHS\Data\ehs.sqlite
+%USERPROFILE%\VIETCHEM_EHS\Data\uploads
+%USERPROFILE%\VIETCHEM_EHS\Backups
+
+Chi tiết: TAILSCALE_SETUP_VN.md

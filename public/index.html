@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>VIETCHEM EHS System</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+<div id="loginScreen" class="auth-screen">
+  <div class="auth-card">
+    <div class="brand auth-brand"><div class="brandmark logo"><img src="/vietchem-logo.png" alt="VIETCHEM"></div><div><strong>VIETCHEM EHS</strong><span>Internal Pilot</span></div></div>
+    <h1>Đăng nhập</h1><p>Hệ thống EHS nội bộ VIETCHEM · role-based access</p>
+    <form id="loginForm">
+      <label>Tài khoản<input id="loginUser" autocomplete="username" value="admin"></label>
+      <label>Mật khẩu<input id="loginPass" type="password" autocomplete="current-password"></label>
+      <button class="primary wide" type="submit">Đăng nhập</button>
+      <div class="auth-hint">Tài khoản khởi tạo: <b>admin</b> · Mật khẩu tạm được sinh ở lần chạy đầu tiên. Personal Private không dùng mật khẩu mặc định cố định.</div><div id="loginError" class="auth-error"></div>
+    </form>
+  </div>
+</div>
+
+<div class="shell" id="shell" hidden>
+  <aside class="sidebar">
+    <div class="brand"><div class="brandmark logo"><img src="/vietchem-logo.png" alt="VIETCHEM"></div><div class="brand-copy"><strong>VIETCHEM EHS</strong><span>EHS Management System</span><div id="sideClock" class="side-clock"><b>--:--:--</b><small>--/--/----</small></div></div></div>
+    <nav id="nav">
+      <button data-view="myday" data-perm="dashboard.read" class="active"><span>☀</span>My Day</button>
+      <button data-view="overview" data-perm="dashboard.read"><span>⌂</span>Overview</button>
+      <button data-view="inbox" data-perm="dashboard.read"><span>▤</span>Inbox</button>
+      <button data-view="calendar" data-perm="dashboard.read"><span>▦</span>Calendar</button>
+      <button data-view="auditprep" data-perm="compliance.read"><span>◎</span>Audit Mode</button>
+      <button data-view="reports" data-perm="dashboard.read"><span>▥</span>Báo cáo tháng</button>
+      <button data-view="compliance" data-perm="compliance.read"><span>⚖</span>Compliance</button>
+      <button data-view="documents" data-perm="documents.read"><span>▣</span>Documents</button>
+      <button data-view="ppe" data-perm="ppe.read"><span>🦺</span>PPE</button>
+      <button data-view="equipment" data-perm="equipment.read"><span>🏗</span>Thiết bị</button>
+      <button data-view="payments" data-perm="payments.read"><span>₫</span>Payments</button>
+      <button data-view="tasks" data-perm="tasks.read"><span>✓</span>Tasks</button>
+      <button data-view="notifications" data-perm="dashboard.read"><span>●</span>Alerts</button>
+      <button data-view="employees" data-perm="employees.read"><span>👥</span>Employees</button>
+      <button data-view="audit" data-perm="audit.read"><span>◷</span>Audit</button>
+      <button data-view="users" data-perm="users.manage"><span>⚙</span>Users & Roles</button>
+      <button data-view="system" data-perm="system.manage"><span>⛨</span>System</button>
+    </nav>
+    <div class="side-note"><b>Source of truth</b><span>Không overwrite hồ sơ gốc · Deadline change luôn có giải trình & audit.</span></div>
+  </aside>
+
+  <main>
+    <header>
+      <div><h1 id="pageTitle">Overview</h1><p id="pageSubtitle">EHS Command Center</p></div>
+      <div class="header-search"><button class="ghost global-search-trigger" id="globalSearchBtn">⌕ Tìm nhanh <kbd>Ctrl K</kbd></button></div>
+      <div class="header-actions">
+        <div class="user-chip"><span id="userName">—</span><small id="userRole">—</small></div>
+        <button class="soft" id="quickCaptureBtn">＋ Capture</button>
+        <button class="ghost" id="refreshBtn">↻ Refresh</button>
+        <button class="ghost" id="exportExcelBtn">⇩ Xuất Excel</button>
+        <button class="primary" id="quickTaskBtn">+ Quick task</button>
+        <button class="ghost" id="logoutBtn">Đăng xuất</button>
+      </div>
+    </header>
+    <section id="app"></section>
+  </main>
+</div>
+<div id="toast"></div>
+<div id="modalRoot"></div>
+<script type="module" src="/app.js"></script>
+</body>
+</html>
