@@ -11,14 +11,14 @@ import { validateBackupArchive, restoreBackupArchive } from '../lib/backup.mjs';
 import { analyzeText } from '../lib/document-intelligence.mjs';
 import { unzipEntries } from '../lib/xlsx-template.mjs';
 
-test('VIETCHEM EHS checkpoint7 private-cloud integration suite', async (t)=>{
+test('VIETCHEM EHS checkpoint7.2 integration suite', async (t)=>{
   const root=fileURLToPath(new URL('..', import.meta.url));
   const tmp=await mkdtemp(join(tmpdir(),'gami-ehs-test-'));
   const port=18987;
   const bootstrap='TempPass!2026';
-  const child=spawn(process.execPath,[join(root,'server.mjs')],{cwd:root,env:{...process.env,PORT:String(port),EHS_DATA_DIR:join(tmp,'data'),EHS_UPLOAD_DIR:join(tmp,'uploads'),EHS_BOOTSTRAP_PASSWORD:bootstrap,EHS_ENABLE_LEGAL_WATCH:'0',EHS_AUTO_BACKUP:'0'},stdio:['ignore','pipe','pipe']});
+  const child=spawn(process.execPath,[join(root,'server.mjs')],{cwd:root,env:{...process.env,PORT:String(port),EHS_DATA_DIR:join(tmp,'data'),EHS_UPLOAD_DIR:join(tmp,'uploads'),EHS_ADMIN_PASSWORD:bootstrap,EHS_ENABLE_LEGAL_WATCH:'0',EHS_AUTO_BACKUP:'0'},stdio:['ignore','pipe','pipe']});
   let started=false;
-  child.stdout.on('data',d=>{if(String(d).includes('VIETCHEM EHS System CP7.1 Railway Web'))started=true});
+  child.stdout.on('data',d=>{if(String(d).includes('VIETCHEM EHS System CP7.2 Login Recovery'))started=true});
   child.stderr.on('data',d=>{if(!String(d).includes('ExperimentalWarning'))process.stderr.write('[server] '+String(d))});
   for(let i=0;i<160&&!started;i++)await new Promise(r=>setTimeout(r,50));
   assert.equal(started,true,'server did not start');
@@ -60,7 +60,7 @@ test('VIETCHEM EHS checkpoint7 private-cloud integration suite', async (t)=>{
     const done=await req('/api/legal-updates/resolve',{method:'POST',body:JSON.stringify({id:u.id,status:'action_required',review_note:'QA: review PCCC forms/workflows before changing obligations.'})});assert.equal(done.r.status,200);
     const after=(await req('/api/legal-updates')).j.find(x=>x.id===u.id);assert.equal(after.status,'action_required');
   });
-  await t.test('checkpoint7 private health endpoint is public and minimal',async()=>{const r=await fetch(`http://127.0.0.1:${port}/healthz`);assert.equal(r.status,200);const j=await r.json();assert.equal(j.status,'ok');assert.match(j.version,/checkpoint7\.1-railway-web/);assert.equal(r.headers.get('x-robots-tag'),'noindex, nofollow, noarchive')});
+  await t.test('checkpoint7 private health endpoint is public and minimal',async()=>{const r=await fetch(`http://127.0.0.1:${port}/healthz`);assert.equal(r.status,200);const j=await r.json();assert.equal(j.status,'ok');assert.match(j.version,/checkpoint7\.2-login-recovery/);assert.equal(r.headers.get('x-robots-tag'),'noindex, nofollow, noarchive')});
   await t.test('checkpoint7 Legal Intelligence searches curated official register without auto-changing obligations',async()=>{const out=await req('/api/legal-search?q=105%2F2025');assert.equal(out.r.status,200);assert.ok(out.j.results.sources.some(x=>x.code==='105/2025/NĐ-CP'));assert.ok(Array.isArray(out.j.official_portals)&&out.j.official_portals.length>=2);const ui=await readFile(join(root,'public','app.js'),'utf8');assert.match(ui,/Tra cứu luật nội bộ/);assert.match(ui,/Human review required/)});
   await t.test('employee master can be filtered by site',async()=>{const all=(await req('/api/employees?site=TT&status=active')).j;assert.ok(all.length>100);assert.ok(all.every(x=>x.site_code==='TT'))});
   await t.test('PPE issue allows negative stock and records it',async()=>{const em=(await req('/api/employees?site=TT&status=active')).j[0];const p=(await req('/api/ppe')).j.items.find(x=>x.sku==='PPE-001');const qty=Math.max(1,Number(p.current_stock)+5);const {r,j}=await req('/api/ppe/issue',{method:'POST',body:JSON.stringify({employee_id:em.id,lines:[{item_id:p.id,quantity:qty}],reason:'test'})});assert.equal(r.status,201);assert.equal(j.results[0].negative_stock,true);assert.ok(j.results[0].after<0)});
@@ -150,14 +150,15 @@ test('VIETCHEM EHS checkpoint7 private-cloud integration suite', async (t)=>{
   });
   await t.test('backup API creates checksum-valid archive and offline restore preserves DB + uploads',async()=>{
     const r=await fetch(`http://127.0.0.1:${port}/api/admin/backup`,{headers:{cookie:adminCookie}});assert.equal(r.status,200);assert.match(r.headers.get('content-type')||'',/gzip/);const buf=Buffer.from(await r.arrayBuffer());assert.ok(buf.length>1000);
-    const local=validateBackupArchive(buf);assert.equal(local.ok,true);assert.equal(local.manifest.app_version,'0.9.0-checkpoint7.1-railway-web');assert.ok(local.manifest.files.some(f=>f.path==='data/ehs.sqlite'));assert.ok(local.manifest.files.some(f=>f.path.startsWith('uploads/')));
+    const local=validateBackupArchive(buf);assert.equal(local.ok,true);assert.equal(local.manifest.app_version,'0.9.1-checkpoint7.2-login-recovery');assert.ok(local.manifest.files.some(f=>f.path==='data/ehs.sqlite'));assert.ok(local.manifest.files.some(f=>f.path.startsWith('uploads/')));
     const viaApi=await req('/api/admin/backup/validate',{method:'POST',body:JSON.stringify({base64:buf.toString('base64')})});assert.equal(viaApi.r.status,200);assert.equal(viaApi.j.ok,true);
     const restoreRoot=await mkdtemp(join(tmpdir(),'gami-ehs-restore-'));try{await restoreBackupArchive(buf,{dataDir:join(restoreRoot,'data'),uploadDir:join(restoreRoot,'uploads')});const restoredDb=new DatabaseSync(join(restoreRoot,'data','ehs.sqlite'),{readOnly:true});assert.equal(restoredDb.prepare('SELECT COUNT(*) c FROM employees').get().c,430);assert.equal(restoredDb.prepare('SELECT COUNT(*) c FROM equipment').get().c,16);assert.ok(restoredDb.prepare('SELECT COUNT(*) c FROM documents').get().c>=5);restoredDb.close();assert.ok((await readdir(join(restoreRoot,'uploads'))).length>=1)}finally{await rm(restoreRoot,{recursive:true,force:true})}
   });
-  await t.test('login brute-force guard locks account after five failed attempts',async()=>{
+  await t.test('login brute-force guard blocks wrong attempts but a correct password self-recovers the account',async()=>{
     const create=await req('/api/users',{method:'POST',body:JSON.stringify({username:'lock.qa',display_name:'Lock QA',role:'warehouse',password:'LockTest!2026'})});assert.equal(create.r.status,201);
     for(let i=0;i<5;i++){const bad=await req('/api/auth/login',{method:'POST',body:JSON.stringify({username:'lock.qa',password:'wrong-password'})},'');assert.equal(bad.r.status,401)}
-    const locked=await req('/api/auth/login',{method:'POST',body:JSON.stringify({username:'lock.qa',password:'LockTest!2026'})},'');assert.equal(locked.r.status,429);assert.equal(locked.j.error,'LOGIN_LOCKED');assert.ok(locked.j.locked_until);
+    const blocked=await req('/api/auth/login',{method:'POST',body:JSON.stringify({username:'lock.qa',password:'still-wrong'})},'');assert.equal(blocked.r.status,429);assert.equal(blocked.j.error,'LOGIN_LOCKED');assert.ok(blocked.j.locked_until);
+    const recovered=await req('/api/auth/login',{method:'POST',body:JSON.stringify({username:'lock.qa',password:'LockTest!2026'})},'');assert.equal(recovered.r.status,200);
   });
   await t.test('RBAC denies warehouse from payment writes but allows PPE read',async()=>{
     const create=await req('/api/users',{method:'POST',body:JSON.stringify({username:'warehouse.qa',display_name:'Warehouse QA',role:'warehouse',password:'Warehouse!2026'})});assert.equal(create.r.status,201);
@@ -221,7 +222,7 @@ test('VIETCHEM EHS checkpoint7 private-cloud integration suite', async (t)=>{
     assert.match(src,/\$\('#managePpeTypes'\)\.onclick=\(\)=>managePpeTypes\(\)/);
   });
   await t.test('system health exposes WAL/busy-timeout and concurrent writes remain consistent',async()=>{
-    const h=await req('/api/system/health');assert.equal(h.r.status,200);assert.equal(h.j.app_version,'0.9.0-checkpoint7.1-railway-web');assert.equal(String(h.j.journal_mode).toLowerCase(),'wal');assert.ok(Number(h.j.busy_timeout_ms)>=5000);
+    const h=await req('/api/system/health');assert.equal(h.r.status,200);assert.equal(h.j.app_version,'0.9.1-checkpoint7.2-login-recovery');assert.equal(String(h.j.journal_mode).toLowerCase(),'wal');assert.ok(Number(h.j.busy_timeout_ms)>=5000);
     const writes=await Promise.all(Array.from({length:12},(_,i)=>req('/api/tasks',{method:'POST',body:JSON.stringify({title:`Concurrent QA ${i}`,category:'QA',site_id:'site_tt',owner:'QA'})})));assert.ok(writes.every(x=>x.r.status===201));const tasks=(await req('/api/tasks')).j;assert.equal(tasks.filter(x=>String(x.title).startsWith('Concurrent QA ')).length,12);
   });
 

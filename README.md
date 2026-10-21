@@ -1,3 +1,7 @@
+# VIETCHEM EHS SYSTEM — CP7.2 LOGIN RECOVERY
+
+> Railway hotfix: dùng `EHS_ADMIN_PASSWORD` làm admin secret ổn định; tự clear LOGIN_LOCKED mỗi lần khởi động. Xem `RAILWAY_DEPLOY_VN.md`.
+
 # VIETCHEM EHS System — CP7.0A Personal Private Online
 
 CP7.0A là nhánh online/private dành cho **dự án cá nhân**. App vẫn dùng SQLite + Data Safe hiện tại, nhưng có thể mở từ laptop/điện thoại thông qua **Tailscale private network** mà không cần VPS, domain hoặc mở port router.

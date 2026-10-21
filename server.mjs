@@ -26,7 +26,7 @@ const ROOT = fileURLToPath(new URL('.', import.meta.url));
 const PATHS = await ensureRuntimeDirs(runtimePaths(ROOT));
 const {home:EHS_HOME_DIR,dataDir:DATA_DIR,uploadDir:UPLOAD_DIR,backupDir:BACKUP_DIR,logDir:LOG_DIR,dbPath:DB_PATH}=PATHS;
 const PUBLIC_DIR = join(ROOT, 'public');
-const APP_VERSION = '0.9.0-checkpoint7.1-railway-web';
+const APP_VERSION = '0.9.1-checkpoint7.2-login-recovery';
 const LEGAL_WATCH_ENABLED = process.env.EHS_ENABLE_LEGAL_WATCH !== '0';
 const REAL_SEED = join(ROOT, 'data', 'seed.real.json');
 const DB_EXISTED_AT_START = existsSync(DB_PATH);
@@ -701,21 +701,32 @@ function obligationStatusDerived(o){if(o.status==='completed')return 'completed'
 
 function seedAuth(){
   db.prepare("DELETE FROM sessions WHERE datetime(expires_at)<=datetime('now')").run();
-  const reset=process.env.EHS_RESET_ADMIN_PASSWORD;
-  const bootstrap=process.env.EHS_BOOTSTRAP_PASSWORD;
-  const forcedPassword=reset||bootstrap||null;
-  const existing=db.prepare("SELECT * FROM users WHERE username='admin'").get();
+
+  // CP7.2: EHS_ADMIN_PASSWORD is the canonical Railway/cloud admin secret.
+  // Keeping it in Railway Variables makes admin recovery deterministic across redeploys.
+  // Legacy variables are still accepted for backwards compatibility.
+  const configuredRaw=process.env.EHS_ADMIN_PASSWORD || process.env.EHS_RESET_ADMIN_PASSWORD || process.env.EHS_BOOTSTRAP_PASSWORD || '';
+  const configured=String(configuredRaw);
+  if(configured && configured.length<10){
+    throw new Error('EHS_ADMIN_PASSWORD / reset / bootstrap password must be at least 10 characters');
+  }
+
+  let existing=db.prepare("SELECT * FROM users WHERE lower(username)='admin' ORDER BY created_at LIMIT 1").get();
   if(!existing){
-    const password=forcedPassword||`Ehs-${crypto.randomBytes(6).toString('base64url')}!`;
+    const password=configured || `Ehs-${crypto.randomBytes(9).toString('base64url')}!`;
     const h=hashPassword(password);
-    db.prepare(`INSERT INTO users(id,username,display_name,role,password_salt,password_hash,active,must_change_password,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)`).run('usr_admin','admin','EHS Administrator','admin',h.salt,h.hash,1,1,now(),now());
-    db.prepare("DELETE FROM login_guards WHERE username='admin'").run();
-    console.log('\n=== VIETCHEM EHS FIRST RUN ===\nUsername: admin\nTemporary password: '+password+'\n===============================\n');
-  } else if(reset){
-    const h=hashPassword(reset);
-    db.prepare("UPDATE users SET password_salt=?,password_hash=?,must_change_password=0,active=1,updated_at=? WHERE username='admin'").run(h.salt,h.hash,now());
-    db.prepare("DELETE FROM login_guards WHERE username='admin'").run();
-    console.log('Admin password reset from EHS_RESET_ADMIN_PASSWORD and login lock cleared.');
+    db.prepare(`INSERT INTO users(id,username,display_name,role,password_salt,password_hash,active,must_change_password,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)`).run('usr_admin','admin','EHS Administrator','admin',h.salt,h.hash,1,configured?0:1,now(),now());
+    clearLoginGuard('admin');
+    console.log('\n=== VIETCHEM EHS FIRST RUN ===\nUsername: admin\n'+(configured?'Admin password loaded from Railway/environment variable EHS_ADMIN_PASSWORD.':'Temporary password: '+password)+'\n===============================\n');
+    existing=db.prepare("SELECT * FROM users WHERE lower(username)='admin' ORDER BY created_at LIMIT 1").get();
+  }
+
+  if(existing && configured){
+    const h=hashPassword(configured);
+    db.prepare("UPDATE users SET username='admin',role='admin',password_salt=?,password_hash=?,must_change_password=0,active=1,updated_at=? WHERE id=?").run(h.salt,h.hash,now(),existing.id);
+    clearLoginGuard('admin');
+    db.prepare('DELETE FROM sessions WHERE user_id=?').run(existing.id);
+    console.log('[AUTH] Admin credential synchronized from EHS_ADMIN_PASSWORD/environment and login lock cleared.');
   }
 }
 
@@ -838,7 +849,7 @@ console.log(`[DATA] Backups: ${BACKUP_DIR}`);
 console.log(`[MIGRATION] Applied this start: ${STARTUP_MIGRATION.applied.join(', ')||'none'}; schema=${STARTUP_MIGRATION.latest}`);
 
 const routes=[]; function route(method,pathname,handler){routes.push({method,pathname,handler})}
-route('POST','/api/auth/login',async(req,res)=>{const b=await bodyJson(req),username=String(b.username||'').trim();const guard=loginGuard(username);if(guard.locked){audit('auth.login_blocked','user',null,{username,locked_until:guard.row.locked_until},username||'unknown');return json(res,429,{error:'LOGIN_LOCKED',locked_until:guard.row.locked_until})}const u=db.prepare('SELECT * FROM users WHERE username=? AND active=1').get(username);if(!u||!verifyPassword(b.password||'',u.password_salt,u.password_hash)){const fail=loginFailure(username);audit('auth.login_failed','user',u?.id||null,{username,failed_count:fail.count,locked_until:fail.locked_until},username||'unknown');return json(res,401,{error:'Sai tài khoản hoặc mật khẩu'})}clearLoginGuard(username);const token=crypto.randomBytes(32).toString('base64url'),expires=new Date(Date.now()+8*3600_000).toISOString();db.prepare('INSERT INTO sessions(token_hash,user_id,expires_at,created_at) VALUES(?,?,?,?)').run(tokenHash(token),u.id,expires,now());audit('auth.login','user',u.id,{role:u.role},u.username);json(res,200,{user:{id:u.id,username:u.username,display_name:u.display_name,role:u.role,must_change_password:!!u.must_change_password}}, {'Set-Cookie':sessionCookie(token)})});
+route('POST','/api/auth/login',async(req,res)=>{const b=await bodyJson(req),username=String(b.username||'').trim();const u=db.prepare('SELECT * FROM users WHERE lower(username)=lower(?) AND active=1').get(username);const passwordOk=!!u&&verifyPassword(b.password||'',u.password_salt,u.password_hash);if(passwordOk){clearLoginGuard(username);const token=crypto.randomBytes(32).toString('base64url'),expires=new Date(Date.now()+8*3600_000).toISOString();db.prepare('INSERT INTO sessions(token_hash,user_id,expires_at,created_at) VALUES(?,?,?,?)').run(tokenHash(token),u.id,expires,now());audit('auth.login','user',u.id,{role:u.role},u.username);return json(res,200,{user:{id:u.id,username:u.username,display_name:u.display_name,role:u.role,must_change_password:!!u.must_change_password}}, {'Set-Cookie':sessionCookie(token)})}const guard=loginGuard(username);if(guard.locked){audit('auth.login_blocked','user',u?.id||null,{username,locked_until:guard.row.locked_until},username||'unknown');return json(res,429,{error:'LOGIN_LOCKED',locked_until:guard.row.locked_until})}const fail=loginFailure(username);audit('auth.login_failed','user',u?.id||null,{username,failed_count:fail.count,locked_until:fail.locked_until},username||'unknown');return json(res,401,{error:'Sai tài khoản hoặc mật khẩu'})});
 route('GET','/api/auth/me',async(req,res)=>json(res,200,{user:req.user,permissions:ROLE_PERMS[req.user.role]||[]}));
 route('POST','/api/auth/logout',async(req,res)=>{const token=parseCookies(req).ehs_session;if(token)db.prepare('DELETE FROM sessions WHERE token_hash=?').run(tokenHash(token));audit('auth.logout','user',req.user.id,{},req.user.username);json(res,200,{ok:true},{'Set-Cookie':sessionCookie('',0)})});
 route('POST','/api/auth/change-password',async(req,res)=>{const b=await bodyJson(req);const u=db.prepare('SELECT * FROM users WHERE id=?').get(req.user.id);if(!verifyPassword(b.old_password||'',u.password_salt,u.password_hash))return json(res,400,{error:'Mật khẩu hiện tại không đúng'});if(String(b.new_password||'').length<10)return json(res,400,{error:'Mật khẩu mới tối thiểu 10 ký tự'});const h=hashPassword(b.new_password);db.prepare('UPDATE users SET password_salt=?,password_hash=?,must_change_password=0,updated_at=? WHERE id=?').run(h.salt,h.hash,now(),u.id);db.prepare('DELETE FROM sessions WHERE user_id=? AND token_hash<>?').run(u.id,tokenHash(parseCookies(req).ehs_session||''));audit('auth.password_changed','user',u.id,{},u.username);json(res,200,{ok:true})});
@@ -1097,7 +1108,7 @@ const server=http.createServer(async(req,res)=>{
   if(rawPath!=='/healthz'&&!requestHostAllowed(req))return json(res,421,{error:'HOST_NOT_ALLOWED'});
   if(!requestOriginAllowed(req))return json(res,403,{error:'ORIGIN_NOT_ALLOWED'});
   const url=new URL(req.url,`http://${req.headers.host||'localhost'}`),r=routes.find(x=>x.method===req.method&&x.pathname===url.pathname);try{if(r){const perm=apiPermission(req.method,url.pathname);if(perm!=='public'){const user=getSessionUser(req);if(!user)return json(res,401,{error:'AUTH_REQUIRED'});req.user=user;if(user.must_change_password&& !['/api/auth/me','/api/auth/change-password','/api/auth/logout'].includes(url.pathname))return json(res,403,{error:'PASSWORD_CHANGE_REQUIRED'});if(perm!=='auth'&&!hasPerm(user,perm))return json(res,403,{error:'FORBIDDEN',permission:perm})}return await r.handler(req,res,url)}if(req.method==='GET'&&await serveStatic(req,res,url.pathname))return;json(res,404,{error:'not found'})}catch(e){console.error(e);json(res,500,{error:e.message||'server error'})}});
-server.listen(PORT,HOST,()=>{console.log(`VIETCHEM EHS System CP7.1 Railway Web on http://${HOST}:${PORT}`);if(PERSONAL_PRIVATE_MODE){console.log(`[PRIVATE ONLINE] Tailscale-only listener: ${HOST}:${PORT}`);if(PUBLIC_BASE_URL)console.log(`[PRIVATE ONLINE] Open on your tailnet devices: ${PUBLIC_BASE_URL}`)}});
+server.listen(PORT,HOST,()=>{console.log(`VIETCHEM EHS System CP7.2 Login Recovery on http://${HOST}:${PORT}`);if(PERSONAL_PRIVATE_MODE){console.log(`[PRIVATE ONLINE] Tailscale-only listener: ${HOST}:${PORT}`);if(PUBLIC_BASE_URL)console.log(`[PRIVATE ONLINE] Open on your tailnet devices: ${PUBLIC_BASE_URL}`)}});
 if(LEGAL_WATCH_ENABLED){const min=Math.max(60,Number(process.env.EHS_LEGAL_WATCH_INTERVAL_MIN||1440));const tick=()=>runLegalWatch({triggeredBy:'scheduler'}).then(()=>refreshNotifications()).catch(e=>console.error('Legal watch:',e.message));const first=setTimeout(tick,60_000);first.unref();const timer=setInterval(tick,min*60_000);timer.unref();}
 if(AUTO_BACKUP_ENABLED){const tick=()=>maybeAutoBackup().catch(e=>console.error('[BACKUP] Scheduled backup check failed:',e.message||e));const timer=setInterval(tick,AUTO_BACKUP_CHECK_INTERVAL_MIN*60_000);timer.unref();}
 
