@@ -20,8 +20,8 @@ test('CP7.0A health exposes personal-private runtime only after authenticated he
   const root=fileURLToPath(new URL('..', import.meta.url)),tmp=await mkdtemp(join(tmpdir(),'ehs-personal-private-')),port=19327;
   const child=spawn(process.execPath,[join(root,'server.mjs')],{cwd:root,env:{...process.env,PORT:String(port),HOST:'127.0.0.1',EHS_HOME_DIR:tmp,EHS_DATA_DIR:join(tmp,'data'),EHS_UPLOAD_DIR:join(tmp,'uploads'),EHS_BACKUP_DIR:join(tmp,'backups'),EHS_LOG_DIR:join(tmp,'logs'),EHS_BOOTSTRAP_PASSWORD:'PersonalTemp!2026',EHS_ENABLE_LEGAL_WATCH:'0',EHS_AUTO_BACKUP:'0',EHS_PERSONAL_PRIVATE:'1',EHS_TAILSCALE_IP:'100.88.77.66',EHS_PUBLIC_BASE_URL:'http://100.88.77.66:8787',EHS_ENFORCE_ORIGIN:'0',EHS_REQUIRE_CF_ACCESS:'0',EHS_ALLOWED_HOSTS:'',EHS_ALLOWED_ORIGINS:''},stdio:['ignore','pipe','pipe']});
   let out='';child.stdout.on('data',d=>out+=String(d));
-  for(let i=0;i<160&&!out.includes('VIETCHEM EHS System CP7.2 Login Recovery');i++)await new Promise(r=>setTimeout(r,50));
-  assert.match(out,/CP7\.2 Login Recovery/);t.after(async()=>{child.kill('SIGTERM');await rm(tmp,{recursive:true,force:true})});
+  for(let i=0;i<160&&!out.includes('VIETCHEM EHS System CP7.3 NCC Text Input');i++)await new Promise(r=>setTimeout(r,50));
+  assert.match(out,/CP7\.3 NCC Text Input/);t.after(async()=>{child.kill('SIGTERM');await rm(tmp,{recursive:true,force:true})});
   const base=`http://127.0.0.1:${port}`;
   let r=await fetch(base+'/healthz'),j=await r.json();assert.equal(r.status,200);assert.equal(j.personal_private_mode,true);assert.equal(j.tailscale_ip,undefined);
   r=await fetch(base+'/api/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({username:'admin',password:'PersonalTemp!2026'})});assert.equal(r.status,200);const cookie=r.headers.get('set-cookie').split(';')[0];

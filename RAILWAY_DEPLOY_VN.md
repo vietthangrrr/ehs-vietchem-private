@@ -1,10 +1,10 @@
-# VIETCHEM EHS CP7.2 — Railway Login Recovery
+# VIETCHEM EHS CP7.3 — Railway Login Recovery
 
-CP7.2 là bản sửa trực tiếp cho lỗi `LOGIN_LOCKED` / sai mật khẩu admin trên CP7.1. Database và Persistent Volume cũ **không cần xóa**.
+CP7.3 là bản sửa trực tiếp cho lỗi `LOGIN_LOCKED` / sai mật khẩu admin trên CP7.1. Database và Persistent Volume cũ **không cần xóa**.
 
 ## Cách update service CP7.1 hiện tại
 
-1. Thay source trong GitHub repo bằng source CP7.2 này và commit/push.
+1. Thay source trong GitHub repo bằng source CP7.3 này và commit/push.
 2. Railway → service `ehs-vietchem-private` → **Variables**.
 3. Tạo biến:
 
@@ -25,7 +25,7 @@ Không gửi mật khẩu đó cho người khác và không commit vào GitHub.
 
 ```text
 [AUTH] Admin credential synchronized from EHS_ADMIN_PASSWORD/environment and login lock cleared.
-VIETCHEM EHS System CP7.2 Login Recovery ...
+VIETCHEM EHS System CP7.3 NCC Text Input ...
 ```
 
 7. Mở domain Railway và đăng nhập:
@@ -35,7 +35,7 @@ Username: admin
 Password: đúng giá trị EHS_ADMIN_PASSWORD
 ```
 
-## CP7.2 sửa gì?
+## CP7.3 sửa gì?
 
 - `EHS_ADMIN_PASSWORD` trở thành mật khẩu admin chuẩn cho Railway.
 - Mỗi lần container khởi động, password hash của `admin` được đồng bộ lại từ biến này.
@@ -44,7 +44,7 @@ Password: đúng giá trị EHS_ADMIN_PASSWORD
 - Session admin cũ bị vô hiệu hóa khi credential được đồng bộ.
 - Nếu đã bị lock vì nhập sai, **nhập đúng password vẫn có thể đăng nhập và tự clear lock**; lock chỉ chặn các lần nhập sai tiếp theo.
 - Railway deployment không còn dùng mật khẩu ngẫu nhiên bí ẩn: nếu thiếu `EHS_ADMIN_PASSWORD`, `start-railway.sh` dừng và log hướng dẫn rõ ràng.
-- `EHS_RESET_ADMIN_PASSWORD` và `EHS_BOOTSTRAP_PASSWORD` vẫn được server hiểu để tương thích bản cũ, nhưng Railway CP7.2 không cần dùng chúng nữa.
+- `EHS_RESET_ADMIN_PASSWORD` và `EHS_BOOTSTRAP_PASSWORD` vẫn được server hiểu để tương thích bản cũ, nhưng Railway CP7.3 không cần dùng chúng nữa.
 
 ## Persistent data
 
@@ -61,7 +61,7 @@ Không xóa Volume chỉ để sửa login. Xóa Volume sẽ làm mất database
 
 ## Kiểm tra sau update
 
-- `/healthz` trả `status: ok` và version chứa `checkpoint7.2-login-recovery`.
+- `/healthz` trả `status: ok` và version chứa `checkpoint7.3-ncc-text`.
 - Đăng nhập `admin` bằng `EHS_ADMIN_PASSWORD` thành công.
 - Vào System Health, `data_home` phải bắt đầu bằng `/data/VIETCHEM_EHS`.
 - Kiểm tra một record cũ vẫn tồn tại để xác nhận volume cũ được dùng.

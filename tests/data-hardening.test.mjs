@@ -12,7 +12,7 @@ import { validateBackupArchive } from '../lib/backup.mjs';
 async function start(root,env,port){
   const child=spawn(process.execPath,[join(root,'server.mjs')],{cwd:root,env:{...process.env,...env,PORT:String(port),EHS_ENABLE_LEGAL_WATCH:'0',EHS_AUTO_BACKUP:'0'},stdio:['ignore','pipe','pipe']});
   let out='',err='';child.stdout.on('data',d=>out+=String(d));child.stderr.on('data',d=>err+=String(d));
-  for(let i=0;i<200;i++){if(out.includes('VIETCHEM EHS System CP7.2 Login Recovery'))return {child,out:()=>out,err:()=>err};if(child.exitCode!=null)break;await new Promise(r=>setTimeout(r,50))}
+  for(let i=0;i<200;i++){if(out.includes('VIETCHEM EHS System CP7.3 NCC Text Input'))return {child,out:()=>out,err:()=>err};if(child.exitCode!=null)break;await new Promise(r=>setTimeout(r,50))}
   child.kill('SIGTERM');throw new Error(`server did not start\nOUT=${out}\nERR=${err}`);
 }
 async function stop(child){child.kill('SIGTERM');for(let i=0;i<50&&child.exitCode==null;i++)await new Promise(r=>setTimeout(r,20))}

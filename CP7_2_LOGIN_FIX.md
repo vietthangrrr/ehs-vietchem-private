@@ -1,6 +1,6 @@
-# CP7.2 Login Fix
+# CP7.3 Login Fix
 
-Root cause addressed: Railway login depended on a first-run/random or one-shot reset flow that was too easy to desynchronize from the persistent SQLite volume. CP7.2 changes the Railway contract to one explicit canonical secret: `EHS_ADMIN_PASSWORD`.
+Root cause addressed: Railway login depended on a first-run/random or one-shot reset flow that was too easy to desynchronize from the persistent SQLite volume. CP7.3 changes the Railway contract to one explicit canonical secret: `EHS_ADMIN_PASSWORD`.
 
 Recovery contract:
 - Persistent DB/volume is kept intact.

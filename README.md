@@ -1,4 +1,4 @@
-# VIETCHEM EHS SYSTEM — CP7.2 LOGIN RECOVERY
+# VIETCHEM EHS SYSTEM — CP7.3 LOGIN RECOVERY
 
 > Railway hotfix: dùng `EHS_ADMIN_PASSWORD` làm admin secret ổn định; tự clear LOGIN_LOCKED mỗi lần khởi động. Xem `RAILWAY_DEPLOY_VN.md`.
 

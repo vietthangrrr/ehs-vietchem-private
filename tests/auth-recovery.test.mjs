@@ -26,7 +26,7 @@ async function start({home,password}){
   child.stdout.on('data',d=>stdout+=String(d));
   child.stderr.on('data',d=>stderr+=String(d));
   for(let i=0;i<200;i++){
-    if(stdout.includes('CP7.2 Login Recovery')) return {child,port,get stdout(){return stdout},get stderr(){return stderr}};
+    if(stdout.includes('CP7.3 NCC Text Input')) return {child,port,get stdout(){return stdout},get stderr(){return stderr}};
     if(child.exitCode!=null) throw new Error(`server exited ${child.exitCode}: ${stderr}\n${stdout}`);
     await wait(25);
   }
@@ -46,7 +46,7 @@ async function login(port,password){
   return {status:r.status,body:await r.json().catch(()=>({}))};
 }
 
-test('CP7.2 Railway admin password is deterministic, clears locks, and survives persistent-volume restart',async()=>{
+test('CP7.3 Railway admin password is deterministic, clears locks, and survives persistent-volume restart',async()=>{
   const home=await mkdtemp(join(tmpdir(),'ehs-auth-recovery-'));
   let a,b;
   try{

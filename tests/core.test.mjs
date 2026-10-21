@@ -11,14 +11,14 @@ import { validateBackupArchive, restoreBackupArchive } from '../lib/backup.mjs';
 import { analyzeText } from '../lib/document-intelligence.mjs';
 import { unzipEntries } from '../lib/xlsx-template.mjs';
 
-test('VIETCHEM EHS checkpoint7.2 integration suite', async (t)=>{
+test('VIETCHEM EHS checkpoint7.3 integration suite', async (t)=>{
   const root=fileURLToPath(new URL('..', import.meta.url));
   const tmp=await mkdtemp(join(tmpdir(),'gami-ehs-test-'));
   const port=18987;
   const bootstrap='TempPass!2026';
   const child=spawn(process.execPath,[join(root,'server.mjs')],{cwd:root,env:{...process.env,PORT:String(port),EHS_DATA_DIR:join(tmp,'data'),EHS_UPLOAD_DIR:join(tmp,'uploads'),EHS_ADMIN_PASSWORD:bootstrap,EHS_ENABLE_LEGAL_WATCH:'0',EHS_AUTO_BACKUP:'0'},stdio:['ignore','pipe','pipe']});
   let started=false;
-  child.stdout.on('data',d=>{if(String(d).includes('VIETCHEM EHS System CP7.2 Login Recovery'))started=true});
+  child.stdout.on('data',d=>{if(String(d).includes('VIETCHEM EHS System CP7.3 NCC Text Input'))started=true});
   child.stderr.on('data',d=>{if(!String(d).includes('ExperimentalWarning'))process.stderr.write('[server] '+String(d))});
   for(let i=0;i<160&&!started;i++)await new Promise(r=>setTimeout(r,50));
   assert.equal(started,true,'server did not start');
@@ -60,7 +60,7 @@ test('VIETCHEM EHS checkpoint7.2 integration suite', async (t)=>{
     const done=await req('/api/legal-updates/resolve',{method:'POST',body:JSON.stringify({id:u.id,status:'action_required',review_note:'QA: review PCCC forms/workflows before changing obligations.'})});assert.equal(done.r.status,200);
     const after=(await req('/api/legal-updates')).j.find(x=>x.id===u.id);assert.equal(after.status,'action_required');
   });
-  await t.test('checkpoint7 private health endpoint is public and minimal',async()=>{const r=await fetch(`http://127.0.0.1:${port}/healthz`);assert.equal(r.status,200);const j=await r.json();assert.equal(j.status,'ok');assert.match(j.version,/checkpoint7\.2-login-recovery/);assert.equal(r.headers.get('x-robots-tag'),'noindex, nofollow, noarchive')});
+  await t.test('checkpoint7 private health endpoint is public and minimal',async()=>{const r=await fetch(`http://127.0.0.1:${port}/healthz`);assert.equal(r.status,200);const j=await r.json();assert.equal(j.status,'ok');assert.match(j.version,/checkpoint7\.3-ncc-text/);assert.equal(r.headers.get('x-robots-tag'),'noindex, nofollow, noarchive')});
   await t.test('checkpoint7 Legal Intelligence searches curated official register without auto-changing obligations',async()=>{const out=await req('/api/legal-search?q=105%2F2025');assert.equal(out.r.status,200);assert.ok(out.j.results.sources.some(x=>x.code==='105/2025/NĐ-CP'));assert.ok(Array.isArray(out.j.official_portals)&&out.j.official_portals.length>=2);const ui=await readFile(join(root,'public','app.js'),'utf8');assert.match(ui,/Tra cứu luật nội bộ/);assert.match(ui,/Human review required/)});
   await t.test('employee master can be filtered by site',async()=>{const all=(await req('/api/employees?site=TT&status=active')).j;assert.ok(all.length>100);assert.ok(all.every(x=>x.site_code==='TT'))});
   await t.test('PPE issue allows negative stock and records it',async()=>{const em=(await req('/api/employees?site=TT&status=active')).j[0];const p=(await req('/api/ppe')).j.items.find(x=>x.sku==='PPE-001');const qty=Math.max(1,Number(p.current_stock)+5);const {r,j}=await req('/api/ppe/issue',{method:'POST',body:JSON.stringify({employee_id:em.id,lines:[{item_id:p.id,quantity:qty}],reason:'test'})});assert.equal(r.status,201);assert.equal(j.results[0].negative_stock,true);assert.ok(j.results[0].after<0)});
@@ -150,7 +150,7 @@ test('VIETCHEM EHS checkpoint7.2 integration suite', async (t)=>{
   });
   await t.test('backup API creates checksum-valid archive and offline restore preserves DB + uploads',async()=>{
     const r=await fetch(`http://127.0.0.1:${port}/api/admin/backup`,{headers:{cookie:adminCookie}});assert.equal(r.status,200);assert.match(r.headers.get('content-type')||'',/gzip/);const buf=Buffer.from(await r.arrayBuffer());assert.ok(buf.length>1000);
-    const local=validateBackupArchive(buf);assert.equal(local.ok,true);assert.equal(local.manifest.app_version,'0.9.1-checkpoint7.2-login-recovery');assert.ok(local.manifest.files.some(f=>f.path==='data/ehs.sqlite'));assert.ok(local.manifest.files.some(f=>f.path.startsWith('uploads/')));
+    const local=validateBackupArchive(buf);assert.equal(local.ok,true);assert.equal(local.manifest.app_version,'0.9.1-checkpoint7.3-ncc-text');assert.ok(local.manifest.files.some(f=>f.path==='data/ehs.sqlite'));assert.ok(local.manifest.files.some(f=>f.path.startsWith('uploads/')));
     const viaApi=await req('/api/admin/backup/validate',{method:'POST',body:JSON.stringify({base64:buf.toString('base64')})});assert.equal(viaApi.r.status,200);assert.equal(viaApi.j.ok,true);
     const restoreRoot=await mkdtemp(join(tmpdir(),'gami-ehs-restore-'));try{await restoreBackupArchive(buf,{dataDir:join(restoreRoot,'data'),uploadDir:join(restoreRoot,'uploads')});const restoredDb=new DatabaseSync(join(restoreRoot,'data','ehs.sqlite'),{readOnly:true});assert.equal(restoredDb.prepare('SELECT COUNT(*) c FROM employees').get().c,430);assert.equal(restoredDb.prepare('SELECT COUNT(*) c FROM equipment').get().c,16);assert.ok(restoredDb.prepare('SELECT COUNT(*) c FROM documents').get().c>=5);restoredDb.close();assert.ok((await readdir(join(restoreRoot,'uploads'))).length>=1)}finally{await rm(restoreRoot,{recursive:true,force:true})}
   });
@@ -222,7 +222,7 @@ test('VIETCHEM EHS checkpoint7.2 integration suite', async (t)=>{
     assert.match(src,/\$\('#managePpeTypes'\)\.onclick=\(\)=>managePpeTypes\(\)/);
   });
   await t.test('system health exposes WAL/busy-timeout and concurrent writes remain consistent',async()=>{
-    const h=await req('/api/system/health');assert.equal(h.r.status,200);assert.equal(h.j.app_version,'0.9.1-checkpoint7.2-login-recovery');assert.equal(String(h.j.journal_mode).toLowerCase(),'wal');assert.ok(Number(h.j.busy_timeout_ms)>=5000);
+    const h=await req('/api/system/health');assert.equal(h.r.status,200);assert.equal(h.j.app_version,'0.9.1-checkpoint7.3-ncc-text');assert.equal(String(h.j.journal_mode).toLowerCase(),'wal');assert.ok(Number(h.j.busy_timeout_ms)>=5000);
     const writes=await Promise.all(Array.from({length:12},(_,i)=>req('/api/tasks',{method:'POST',body:JSON.stringify({title:`Concurrent QA ${i}`,category:'QA',site_id:'site_tt',owner:'QA'})})));assert.ok(writes.every(x=>x.r.status===201));const tasks=(await req('/api/tasks')).j;assert.equal(tasks.filter(x=>String(x.title).startsWith('Concurrent QA ')).length,12);
   });
 
@@ -264,6 +264,16 @@ test('VIETCHEM EHS checkpoint7.2 integration suite', async (t)=>{
     const contracts=(await req(`/api/contracts?vendor_id=${encodeURIComponent(v.id)}`)).j;const c=contracts[0];assert.ok(c);assert.equal(c.payment_term_days,10);
     const cr=await req('/api/payments',{method:'POST',body:JSON.stringify({vendor_id:v.id,contract_id:c.id,site_id:'site_tt',title:'QA rác tháng 10/2026',category:'waste',invoice_no:'QA-100',invoice_date:'2026-10-01',amount:6000000,planned_payment_date:'2026-10-11'})});assert.equal(cr.r.status,201);assert.equal(cr.j.contractual_due_date,'2026-10-11');
     const pay=(await req('/api/payments')).j.find(x=>x.id===cr.j.id);assert.deepEqual(pay.docs.map(x=>x.doc_type).sort(),['Biên bản nghiệm thu','Hóa đơn','Hợp đồng (bản sao photo)','Phiếu cân','Đề nghị thanh toán khác'].sort());assert.ok(pay.docs.every(x=>['missing','declared','linked'].includes(x.evidence_state)));
+  });
+
+  await t.test('checkpoint7.3 payment NCC is free-text and new vendors are auto-created without duplicate picking',async()=>{
+    const ui=await readFile(join(root,'public','app.js'),'utf8');assert.match(ui,/id=\"npVendor\" list=\"npVendorSuggestions\"/);assert.doesNotMatch(ui,/id=\"npVendor\"><option/);
+    const vendorName='QA NCC Gõ Tay 2026';
+    const cr=await req('/api/payments',{method:'POST',body:JSON.stringify({vendor_name:vendorName,title:'QA hồ sơ NCC gõ tay',category:'advance_other',amount:123456})});assert.equal(cr.r.status,201);assert.ok(cr.j.vendor_id);
+    const vendors=(await req('/api/vendors')).j;assert.equal(vendors.filter(v=>v.name===vendorName).length,1);
+    const pay=(await req('/api/payments')).j.find(x=>x.id===cr.j.id);assert.equal(pay.vendor_name,vendorName);
+    const cr2=await req('/api/payments',{method:'POST',body:JSON.stringify({vendor_name:vendorName.toUpperCase(),title:'QA tái dùng NCC gõ tay',category:'advance_other',amount:1})});assert.equal(cr2.r.status,201);assert.equal(cr2.j.vendor_id,cr.j.vendor_id);
+    const vendors2=(await req('/api/vendors')).j;assert.equal(vendors2.filter(v=>v.name.toLowerCase()===vendorName.toLowerCase()).length,1);
   });
 
   await t.test('checkpoint5.2 payment types reproduce the internal checklist including advance and settlement flows',async()=>{

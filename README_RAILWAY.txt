@@ -1,4 +1,4 @@
-VIETCHEM EHS CP7.2 — RAILWAY LOGIN RECOVERY
+VIETCHEM EHS CP7.3 — RAILWAY LOGIN RECOVERY
 
 Mục tiêu: deploy online bằng Railway, không cần Tailscale/PC luôn bật, và loại bỏ lỗi mật khẩu admin/LOGIN_LOCKED của CP7.1.
 
@@ -8,7 +8,7 @@ BẮT BUỘC TRÊN RAILWAY:
 3) Deploy/Redeploy.
 4) Đăng nhập bằng username: admin và đúng giá trị EHS_ADMIN_PASSWORD.
 
-CP7.2 sẽ mỗi lần service khởi động:
+CP7.3 sẽ mỗi lần service khởi động:
 - đồng bộ mật khẩu admin từ EHS_ADMIN_PASSWORD;
 - bật lại tài khoản admin;
 - xóa login lock của admin;
